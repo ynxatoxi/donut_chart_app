@@ -1,14 +1,92 @@
-// donut_painter.dart
+// pie_chart.dart
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'pie_data.dart';
+import 'pie_data_model.dart';
 
-class DonutPainter extends CustomPainter {
-  final DonutChartConfig config;
+class PieChart extends StatefulWidget {
+  final PieChartConfig config;
+  final int? selectedIndex;
+  final ValueChanged<int?>? onSelectionChanged;
+
+  const PieChart({
+    required this.config,
+    this.selectedIndex,
+    this.onSelectionChanged,
+    super.key,
+  });
+
+  @override
+  State<PieChart> createState() => _PieChartState();
+}
+
+class _PieChartState extends State<PieChart> {
+  PiePainter? _painter;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: widget.config.animationDuration,
+      curve: Curves.easeInOut,
+      builder: (context, progress, child) {
+        _painter = PiePainter(
+          config: widget.config,
+          progress: progress,
+          selectedIndex: widget.selectedIndex,
+        );
+
+        return GestureDetector(
+          onTapDown: (details) {
+            if (_painter == null) return;
+
+            final renderBox = context.findRenderObject() as RenderBox;
+            final localPosition = renderBox.globalToLocal(
+              details.globalPosition,
+            );
+
+            final touchedSegment = _painter!.getTouchedSegment(
+              localPosition,
+              Size(
+                widget.config.spaceRadius * 2,
+                widget.config.spaceRadius * 2,
+              ),
+            );
+
+            if (touchedSegment != null) {
+              // Si se toca el mismo segmento, deseleccionar
+              final newSelection =
+                  touchedSegment == widget.selectedIndex
+                      ? null
+                      : touchedSegment;
+
+              widget.onSelectionChanged?.call(newSelection);
+
+              // Llamar callbacks originales
+              widget.config.onTap?.call(touchedSegment);
+              widget.config.onSegmentTap?.call(
+                widget.config.data[touchedSegment],
+              );
+            }
+          },
+          child: CustomPaint(
+            size: Size(
+              widget.config.spaceRadius * 2,
+              widget.config.spaceRadius * 2,
+            ),
+            painter: _painter,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class PiePainter extends CustomPainter {
+  final PieChartConfig config;
   final double progress;
-  final int? selectedIndex; // Índice del segmento seleccionado
+  final int? selectedIndex;
 
-  DonutPainter({
+  PiePainter({
     required this.config,
     this.progress = 1.0,
     this.selectedIndex,
@@ -30,7 +108,7 @@ class DonutPainter extends CustomPainter {
         ..color = segment.color
         ..style = PaintingStyle.fill;
 
-      // Calcular desplazamiento si es el segmento seleccionado
+      // Calculo del desplazamiento si es el segmento seleccionado
       final isSelected = i == selectedIndex;
       final offset = isSelected ? config.selectedOffset : 0.0;
       final offsetAngle = startAngle + sweepAngle / 2;
@@ -39,7 +117,6 @@ class DonutPainter extends CustomPainter {
         center.dy + offset * sin(offsetAngle),
       );
 
-      // Dibujar el segmento de la dona con posible desplazamiento
       final path = Path()
         ..moveTo(offsetCenter.dx, offsetCenter.dy)
         ..arcTo(
@@ -59,7 +136,6 @@ class DonutPainter extends CustomPainter {
       final donutPath = Path.combine(PathOperation.difference, path, holePath);
       canvas.drawPath(donutPath, paint);
 
-      // Texto en los segmentos (opcional)
       if (progress > 0.8 && config.showPercentages) {
         final middleAngle = startAngle + sweepAngle / 2;
         final textRadius = (radius + holeRadius) / 2;
@@ -69,11 +145,7 @@ class DonutPainter extends CustomPainter {
         final textPainter = TextPainter(
           text: TextSpan(
             text: '${(segment.value / total * 100).toStringAsFixed(1)}%',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
+            style: config.percentageTextStyle,
           ),
           textDirection: TextDirection.ltr,
         )..layout();
@@ -84,7 +156,6 @@ class DonutPainter extends CustomPainter {
         );
       }
 
-      // Bordes de los segmentos
       final borderPaint = Paint()
         ..color = config.strokeColor
         ..style = PaintingStyle.stroke
@@ -101,7 +172,6 @@ class DonutPainter extends CustomPainter {
       startAngle += sweepAngle;
     }
 
-    // Borde interior
     final innerBorderPaint = Paint()
       ..color = config.strokeColor
       ..style = PaintingStyle.stroke
@@ -140,7 +210,7 @@ class DonutPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant DonutPainter oldDelegate) {
+  bool shouldRepaint(covariant PiePainter oldDelegate) {
     return oldDelegate.config != config || 
            oldDelegate.progress != progress ||
            oldDelegate.selectedIndex != selectedIndex;

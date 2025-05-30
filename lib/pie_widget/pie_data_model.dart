@@ -1,3 +1,4 @@
+// pie_data_model.dart
 import 'package:flutter/material.dart';
 
 class PieData {
@@ -28,7 +29,9 @@ class PieData {
 
 enum LegendShape { circle, square, rectangle }
 
-class DonutChartConfig {
+enum LegendDirection { horizontal, vertical }
+
+class PieChartConfig {
   final List<PieData> data;
   final String? title;
   final double spaceRadius;
@@ -36,18 +39,34 @@ class DonutChartConfig {
   final LegendShape legendShape;
   final TextStyle? legendStyle;
   final TextStyle? titleStyle;
+  final TextStyle percentageTextStyle;
   final Function(int)? onTap;
   final void Function(PieData segment)? onSegmentTap;
   final Duration animationDuration;
   final double strokeWidth;
   final Color strokeColor;
-  final String Function(PieData) legendText;
+  final String Function(PieChartConfig, PieData) legendText;
   final bool showPercentages;
   final bool showLegend;
   final double
   selectedOffset; // Distancia de separación del segmento seleccionado
+  final LegendDirection legendDirection;
 
-  DonutChartConfig({
+  final Widget Function(
+    PieChartConfig config,
+    bool showLegend,
+    ValueChanged<bool> onToggle,
+  )?
+  optionsBuilder;
+
+  final Widget Function(
+    PieChartConfig config,
+    int? selectedIndex,
+    ValueChanged<int?> onSelectionChanged,
+  )?
+  legendBuilder;
+
+  PieChartConfig({
     required this.data,
     this.title,
     this.spaceRadius = 180,
@@ -55,6 +74,11 @@ class DonutChartConfig {
     this.legendShape = LegendShape.circle,
     this.legendStyle,
     this.titleStyle,
+    this.percentageTextStyle = const TextStyle(
+      color: Colors.white,
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+    ),
     this.onTap,
     this.onSegmentTap,
     this.animationDuration = const Duration(milliseconds: 1500),
@@ -64,6 +88,9 @@ class DonutChartConfig {
     this.showPercentages = true,
     this.showLegend = true,
     this.selectedOffset = 15.0, // Añadido: offset para segmento seleccionado
+    this.legendDirection = LegendDirection.horizontal,
+    this.optionsBuilder, // = defaultLegendVisibilityBuilder,
+    this.legendBuilder,
   }) : assert(data.isNotEmpty, 'Data list cannot be empty'),
        assert(spaceRadius > 0, 'Hole diameter must be greater than 0'),
        assert(strokeWidth > 0, 'Stroke width must be greater than 0'),
@@ -75,7 +102,20 @@ class DonutChartConfig {
         .replaceAll('%value%', segment.value.toStringAsFixed(1));
   }
 
-  static String _defaultFormatter(PieData segment) {
+  static String _defaultFormatter(PieChartConfig config, PieData segment) {
     return '${segment.title} (${segment.value}%)';
+  }
+
+  static Widget defaultLegendVisibilityBuilder(
+    bool showLegend,
+    ValueChanged<bool> onToggle,
+  ) {
+    return IntrinsicWidth(
+      child: SwitchListTile(
+        title: const Text('Legend'),
+        value: showLegend,
+        onChanged: onToggle,
+      ),
+    );
   }
 }
