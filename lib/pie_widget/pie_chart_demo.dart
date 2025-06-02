@@ -57,10 +57,10 @@ class PieChartDemo extends StatelessWidget {
           return '${segment.title} (${percentage}%)';
          */
         final total = config.data.fold(0.0, (sum, s) => sum + s.value);
-        return '${total} ${data.title} -- (${data.value}%)';
+        return '$total ${data.title} -- (${data.value}%)';
       },
       optionsBuilder: _buildOptionsCheck,
-      legendBuilder: _buildLegend,
+      //legendBuilder: _buildLegend,
     );
 
     return Scaffold(
